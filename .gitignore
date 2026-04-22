@@ -1,0 +1,23 @@
+# Dependencies
+frontend/node_modules/
+backend/__pycache__/
+backend/**/__pycache__/
+backend/**/*.pyc
+
+# Local data
+data/
+*.db
+
+# Env
+.env
+
+# Build output
+frontend/dist/
+
+# Chroma / ML model cache
+backend/chroma_store/
+.chroma/
+*.onnx
+
+# OS
+.DS_Store
