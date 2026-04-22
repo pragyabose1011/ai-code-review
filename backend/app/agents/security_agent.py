@@ -8,6 +8,7 @@ from langchain_ollama import ChatOllama
 from langchain_core.messages import HumanMessage, SystemMessage
 from app.tools.cve_checker import check_cve
 from app.models.schemas import Issue, Severity
+from app.agents.parse_utils import parse_issues
 
 
 SECURITY_SYSTEM_PROMPT = """You are a senior application security engineer specializing in code security review.
@@ -67,7 +68,7 @@ Identify all security issues. Return JSON array only."""
     ]
 
     response = await llm.ainvoke(messages)
-    issues = _parse_issues(response.content, "security")
+    issues = parse_issues(response.content, "security")
 
     # Add CVE findings as issues
     for vuln in cve_result.get("vulnerabilities", []):
@@ -84,32 +85,3 @@ Identify all security issues. Return JSON array only."""
     return {**state, "security_issues": [i.model_dump() for i in issues]}
 
 
-def _parse_issues(content: str, category: str) -> List[Issue]:
-    try:
-        # Strip markdown code fences if present
-        content = content.strip()
-        if content.startswith("```"):
-            content = "\n".join(content.split("\n")[1:])
-        if content.endswith("```"):
-            content = "\n".join(content.split("\n")[:-1])
-
-        data = json.loads(content.strip())
-        issues = []
-        for item in data:
-            sev_map = {"critical": Severity.CRITICAL, "warning": Severity.WARNING, "info": Severity.INFO}
-            issues.append(Issue(
-                id=str(uuid.uuid4()),
-                title=item.get("title", "Security Issue"),
-                description=item.get("description", ""),
-                severity=sev_map.get(item.get("severity", "warning").lower(), Severity.WARNING),
-                line_start=item.get("line_start"),
-                line_end=item.get("line_end"),
-                code_snippet=item.get("code_snippet"),
-                fix=item.get("fix"),
-                suggestion=item.get("suggestion"),
-                reference=item.get("reference"),
-                category=category
-            ))
-        return issues
-    except (json.JSONDecodeError, KeyError, TypeError):
-        return []

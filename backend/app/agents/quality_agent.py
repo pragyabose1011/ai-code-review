@@ -7,6 +7,7 @@ from langchain_ollama import ChatOllama
 from langchain_core.messages import HumanMessage, SystemMessage
 from app.tools.complexity_scorer import calculate_complexity
 from app.models.schemas import Issue, Severity
+from app.agents.parse_utils import parse_issues
 
 
 QUALITY_SYSTEM_PROMPT = """You are a senior software engineer specializing in code quality and clean code principles.
@@ -66,7 +67,7 @@ Return JSON array only."""
     ]
 
     response = await llm.ainvoke(messages)
-    issues = _parse_issues(response.content, "quality")
+    issues = parse_issues(response.content, "quality")
 
     # Add complexity issues from tool results directly
     if "functions" in complexity_result:
@@ -97,31 +98,3 @@ Return JSON array only."""
     return {**state, "quality_issues": [i.model_dump() for i in issues]}
 
 
-def _parse_issues(content: str, category: str) -> List[Issue]:
-    try:
-        content = content.strip()
-        if content.startswith("```"):
-            content = "\n".join(content.split("\n")[1:])
-        if content.endswith("```"):
-            content = "\n".join(content.split("\n")[:-1])
-
-        data = json.loads(content.strip())
-        issues = []
-        sev_map = {"critical": Severity.CRITICAL, "warning": Severity.WARNING, "info": Severity.INFO}
-        for item in data:
-            issues.append(Issue(
-                id=str(uuid.uuid4()),
-                title=item.get("title", "Quality Issue"),
-                description=item.get("description", ""),
-                severity=sev_map.get(item.get("severity", "info").lower(), Severity.INFO),
-                line_start=item.get("line_start"),
-                line_end=item.get("line_end"),
-                code_snippet=item.get("code_snippet"),
-                fix=item.get("fix"),
-                suggestion=item.get("suggestion"),
-                reference=item.get("reference"),
-                category=category
-            ))
-        return issues
-    except (json.JSONDecodeError, KeyError, TypeError):
-        return []
