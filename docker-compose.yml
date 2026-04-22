@@ -1,0 +1,60 @@
+services:
+  db:
+    image: mysql:8.0
+    restart: unless-stopped
+    networks:
+      - app-network
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-rootpass}
+      MYSQL_DATABASE: ${DB_NAME:-ai_review}
+      MYSQL_USER: ${DB_USER:-aiuser}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-aipass}
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-prootpass"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build: ./backend
+    restart: unless-stopped
+    networks:
+      - app-network
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      SECRET_KEY: ${SECRET_KEY:-change_me_in_production}
+      DB_HOST: db
+      DB_PORT: 3306
+      DB_USER: ${DB_USER:-aiuser}
+      DB_PASSWORD: ${DB_PASSWORD:-aipass}
+      DB_NAME: ${DB_NAME:-ai_review}
+      OLLAMA_HOST: ${OLLAMA_HOST:-http://host.docker.internal:11434}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:5174}
+    volumes:
+      - chroma_data:/data/chroma
+      - sqlite_data:/data
+    ports:
+      - "9000:8000"
+
+  frontend:
+    build: ./frontend
+    restart: unless-stopped
+    networks:
+      - app-network
+    depends_on:
+      - backend
+    ports:
+      - "5174:80"
+
+networks:
+  app-network:
+    driver: bridge
+
+volumes:
+  mysql_data:
+  chroma_data:
+  sqlite_data:

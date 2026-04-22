@@ -1,0 +1,19 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+  background-color: #0f172a;
+  color: #e2e8f0;
+}
+
+.monaco-editor {
+  border-radius: 0.5rem;
+  overflow: hidden;
+}
